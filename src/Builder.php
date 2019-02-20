@@ -1,7 +1,17 @@
 <?php
 
-namespace Psecio\Uri;
+namespace DSentker\Uri;
 
+use DSentker\Uri\Exception\InvalidQuery;
+use DSentker\Uri\Exception\InvalidTimeout;
+use DSentker\Uri\Exception\SignatureExpired;
+use DSentker\Uri\Exception\SignatureInvalid;
+
+/**
+ * The URL Builder class. Adopted by https://github.com/psecio/uri
+ *
+ * @package DSentker\Uri
+ */
 class Builder
 {
     /**
@@ -18,15 +28,24 @@ class Builder
      */
     protected $secret;
 
-    protected $signatureName = 'signature';
-    protected $expiresName = 'expires';
+    /**
+     * The name for the URL parameter which stores the hash
+     *
+     * @var string
+     */
+    public static $signatureName = '_signature';
+
+    /**
+     * @var string The name for the URL parameter which stores the expire date, if set
+     */
+    public static $expiresName = '_expires';
 
     /**
      * Initialize the object and set the secret
      *
      * @param string $secret Secret value
      */
-    public function __construct($secret)
+    public function __construct(string $secret)
     {
         $this->setSecret($secret);
     }
@@ -37,7 +56,7 @@ class Builder
      * @param string $secret
      * @return void
      */
-    public function setSecret($secret)
+    public function setSecret(string $secret)
     {
         $this->secret = $secret;
     }
@@ -47,12 +66,12 @@ class Builder
      *
      * @return string Secret string
      */
-    public function getSecret()
+    public function getSecret(): string
     {
         return $this->secret;
     }
 
-    public function create($base, array $data = [], $timeout = null)
+    public function create(string $base, array $data = [], $timeout = null)
     {
         // If we're not given data, try to break apart the URL provided
         if (empty($data)) {
@@ -66,17 +85,30 @@ class Builder
 
         // Check for the timeout
         if ($timeout !== null) {
-            $timeout = (!is_int($timeout)) ? strtotime($timeout) : $timeout;
-            if ($timeout < time()) {
-                throw new \Psecio\Uri\Exception\InvalidTimeout('Timeout cannot be in the past');
+
+            if(is_int($timeout)) {
+                $timeoutTimestamp = $timeout;
+            } elseif(is_string($timeout)) {
+                $timeoutTimestamp = strtotime($timeout);
+                if(false === $timeoutTimestamp) {
+                    throw new InvalidTimeout('The timeout cannot be parsed via strtotime() and is evidently not a valid date format (as defined via http://php.net/manual/de/datetime.formats.php)');
+                }
+            } elseif($timeout instanceof \DateTimeInterface) {
+                $timeoutTimestamp = $timeout->getTimestamp();
+            } else {
+                throw new InvalidTimeout('Unknown timeout type given: "%s" (expected: int|string|\DateTimeInterface)!', gettype($timeout));
             }
-            $data[$this->expiresName] = $timeout;
+
+            if ($timeoutTimestamp < time()) {
+                throw new InvalidTimeout('Timeout cannot be in the past');
+            }
+            $data[static::$expiresName] = $timeoutTimestamp;
         }
 
         $query = http_build_query($data);
         $signature = $this->buildHash($query);
 
-        $uri = $base.'?'.$query.'&'.$this->signatureName.'='.$signature;
+        $uri = $base.'?'.$query.'&'.static::$signatureName.'='.$signature;
         return $uri;
     }
 
@@ -91,11 +123,10 @@ class Builder
     {
         $uri = parse_url($base);
         if (!isset($uri['query'])) {
-            throw new \Psecio\Uri\Exception\InvalidQuery('No query parameters specified');
+            throw new InvalidQuery('No query parameters specified');
         }
 
-        $data = $this->parseQueryData($uri['query']);
-        return $data;
+        return $this->parseQueryData($uri['query']);
     }
 
     public function verify($url)
@@ -103,25 +134,25 @@ class Builder
         $uri = parse_url($url);
 
         if (!isset($uri['query']) || empty($uri['query'])) {
-            throw new \Psecio\Uri\Exception\InvalidQuery('No URI parameters provided, cannot validate');
+            throw new InvalidQuery('No URI parameters provided, cannot validate');
         }
         $data = $this->parseQueryData($uri['query']);
 
         // Try to find our signature
-        if (!isset($data[$this->signatureName]) || empty($data[$this->signatureName])) {
-            throw new \Psecio\Uri\Exception\SignatureInvalid('No signature found!');
+        if (!isset($data[static::$signatureName]) || empty($data[static::$signatureName])) {
+            throw new SignatureInvalid('No signature found!');
         } else {
             // Remove it
-            $signature = $data[$this->signatureName];
-            unset($data[$this->signatureName]);
+            $signature = $data[static::$signatureName];
+            unset($data[static::$signatureName]);
 
             $uri['query'] = http_build_query($data);
         }
 
         // Do we need to validate the "expires" value?
-        if (isset($data[$this->expiresName])) {
-            if ($data[$this->expiresName] < time()) {
-                throw new \Psecio\Uri\Exception\SignatureExpired('Signature has expired');
+        if (isset($data[static::$expiresName])) {
+            if ($data[static::$expiresName] < time()) {
+                throw new SignatureExpired('Signature has expired');
             }
         }
 
@@ -132,7 +163,7 @@ class Builder
     public function buildHash($queryString)
     {
         if (empty($queryString)) {
-            throw new \Psecio\Uri\Exception\InvalidQuery('Hash cannot be created, query string empty');
+            throw new InvalidQuery('Hash cannot be created, query string empty');
         }
         $signature = hash_hmac($this->algorithm, $queryString, $this->getSecret());
         return $signature;
@@ -143,7 +174,7 @@ class Builder
         $data = [];
         foreach (explode('&', $query) as $param) {
             $parts = explode('=', $param);
-            $data[$parts[0]] = $parts[1];
+            $data[$parts[0]] = (isset($parts[1])) ? $parts[1] : null;
         }
 
         return $data;

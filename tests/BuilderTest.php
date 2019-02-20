@@ -1,52 +1,64 @@
 <?php
 
-namespace Psecio\Uri;
+namespace DSentker\Uri;
 
-use \Psecio\Uri\Builder;
+use DSentker\Uri\Exception\InvalidTimeout;
+use PHPUnit\Framework\TestCase;
 
-class BuilderTest extends \PHPUnit\Framework\TestCase
+class BuilderTest extends TestCase
 {
+
+    const DEFAULT_SECRET = 'test';
+
     public function testSetSecretOnConstruct()
     {
-        $secret = 'testing123';
-
-        $b = new Builder($secret);
-        $this->assertEquals($secret, $b->getSecret());
+        $b = new Builder(static::DEFAULT_SECRET);
+        $this->assertEquals(static::DEFAULT_SECRET, $b->getSecret());
     }
 
     public function testChangeSecretSet()
     {
-        $secret = 'testing123';
+        $b = new Builder(static::DEFAULT_SECRET);
+        $b->setSecret('foo');
 
-        $b = new Builder($secret);
-        $b->setSecret('foobarbaz');
-
-        $this->assertNotEquals($secret, $b->getSecret());
-        $this->assertEquals('foobarbaz', $b->getSecret());
+        $this->assertNotEquals(static::DEFAULT_SECRET, $b->getSecret());
+        $this->assertEquals('foo', $b->getSecret());
     }
 
     public function testBuildDataFromUrl()
     {
         $url = 'http://foobar.com?test=this&and=that';
 
-        $b = new Builder('test');
+        $b = new Builder(static::DEFAULT_SECRET);
         $data = $b->buildFromUrlString($url);
 
         $this->assertEquals([
             'test' => 'this',
-            'and' => 'that'
+            'and'  => 'that'
         ], $data);
     }
 
     /**
-     * @expectedException \Psecio\Uri\Exception\InvalidQuery
+     * @expectedException \DSentker\Uri\Exception\InvalidQuery
      */
     public function testBuildDataFromUrlNoParams()
     {
         $url = 'http://foobar.com';
 
-        $b = new Builder('test');
+        $b = new Builder(static::DEFAULT_SECRET);
+        $b->buildFromUrlString($url);
+    }
+
+    public function testBuildDataFromQueryStringWithoutValues()
+    {
+        $url = 'http://example.com/?foo=bar&baz';
+
+        $b = new Builder(static::DEFAULT_SECRET);
         $data = $b->buildFromUrlString($url);
+        $this->assertSame([
+            'foo' => 'bar',
+            'baz' => null,
+        ], $data);
     }
 
     public function testBuildHash()
@@ -54,29 +66,26 @@ class BuilderTest extends \PHPUnit\Framework\TestCase
         $queryString = 'test=this&and=that';
         $match = '94857a73d16605dc084751a66f8ac05e2be478b79563e49625f0d87b733dcbb1';
 
-        $b = new Builder('test');
+        $b = new Builder(static::DEFAULT_SECRET);
         $hash = $b->buildHash($queryString);
 
         $this->assertEquals($match, $hash);
     }
 
     /**
-     * @expectedException \Psecio\Uri\Exception\InvalidQuery
+     * @expectedException \DSentker\Uri\Exception\InvalidQuery
      */
     public function testBuildHashEmptyString()
     {
-        $queryString = '';
-
-        $b = new Builder('test');
-        $hash = $b->buildHash($queryString);
+        (new Builder(static::DEFAULT_SECRET))->buildHash('');
     }
 
     public function testCreateFromUrlString()
     {
         $url = 'http://test.com?foo=bar&baz=1';
-        $match = 'http://test.com?foo=bar&baz=1&signature=395150b277ca25dd7a52e9345bb9c7bc4b133f001e912fe3a7ed48316a8f5a29';
+        $match = 'http://test.com?foo=bar&baz=1&_signature=395150b277ca25dd7a52e9345bb9c7bc4b133f001e912fe3a7ed48316a8f5a29';
 
-        $b = new Builder('test');
+        $b = new Builder(static::DEFAULT_SECRET);
         $result = $b->create($url);
 
         $this->assertEquals($match, $result);
@@ -90,9 +99,9 @@ class BuilderTest extends \PHPUnit\Framework\TestCase
             'baz' => 1
         ];
         $match = 'http://test.com?foo=bar&baz=1&'
-            .'signature=395150b277ca25dd7a52e9345bb9c7bc4b133f001e912fe3a7ed48316a8f5a29';
+            . '_signature=395150b277ca25dd7a52e9345bb9c7bc4b133f001e912fe3a7ed48316a8f5a29';
 
-        $b = new Builder('test');
+        $b = new Builder(static::DEFAULT_SECRET);
         $result = $b->create($base, $data);
 
         $this->assertEquals($match, $result);
@@ -103,36 +112,36 @@ class BuilderTest extends \PHPUnit\Framework\TestCase
         $base = 'http://test.com';
         $timeout = '+1 minute';
         $data = [
-            'foo' => 'bar',
-            'baz' => 1,
-            'expires' => strtotime($timeout)
+            'foo'     => 'bar',
+            'baz'     => 1,
+            '_expires' => strtotime($timeout)
         ];
-        $b = new Builder('test');
+        $b = new Builder(static::DEFAULT_SECRET);
 
         $queryString = http_build_query($data);
         $hash = $b->buildHash($queryString);
-        $match = 'http://test.com?'.$queryString.'&signature='.$hash;
-        
+        $match = 'http://test.com?' . $queryString . '&_signature=' . $hash;
+
         $result = $b->create($base, $data, $timeout);
         $this->assertEquals($match, $result);
     }
 
     /**
-     * @expectedException \Psecio\Uri\Exception\InvalidTimeout
+     * @expectedException \DSentker\Uri\Exception\InvalidTimeout
      */
     public function testCreateFromUrlDataPastTimeout()
     {
         $base = 'http://test.com';
         $timeout = '-1 minute';
         $data = [
-            'foo' => 'bar',
-            'baz' => 1,
-            'expires' => strtotime($timeout)
+            'foo'     => 'bar',
+            'baz'     => 1,
+            '_expires' => strtotime($timeout)
         ];
-        $b = new Builder('test');
-        
+        $b = new Builder(static::DEFAULT_SECRET);
+
         $result = $b->create($base, $data, $timeout);
-        $this->assertEquals($match, $result);
+        $this->assertEquals(null, $result);
     }
 
     public function testValidateValidSignedUrl()
@@ -142,8 +151,8 @@ class BuilderTest extends \PHPUnit\Framework\TestCase
             'foo' => 'bar',
             'baz' => 1
         ];
-        $b = new Builder('test');
-        
+        $b = new Builder(static::DEFAULT_SECRET);
+
         $result = $b->create($base, $data);
         $this->assertTrue($b->verify($result));
     }
@@ -155,44 +164,98 @@ class BuilderTest extends \PHPUnit\Framework\TestCase
             'foo' => 'bar',
             'baz' => 1
         ];
-        $b = new Builder('test');
-        
+        $b = new Builder(static::DEFAULT_SECRET);
+
         $result = $b->create($base, $data);
-        $result = preg_replace('/signature=[0-9a-z]+/', 'signature=1234', $result);
+        $result = preg_replace('/_signature=[0-9a-z]+/', '_signature=1234', $result);
 
         $this->assertFalse($b->verify($result));
     }
 
     /**
-     * @expectedException \Psecio\Uri\Exception\InvalidQuery
+     * @expectedException \DSentker\Uri\Exception\InvalidQuery
      */
     public function testValidateSignedUrlNoQuery()
     {
         $url = 'http://test.com';
-        $b = new Builder('test');
+        $b = new Builder(static::DEFAULT_SECRET);
 
         $b->verify($url);
     }
 
     /**
-     * @expectedException \Psecio\Uri\Exception\SignatureInvalid
+     * @expectedException \DSentker\Uri\Exception\SignatureInvalid
      */
     public function testValidateNoSignature()
     {
         $url = 'http://test.com?foo=bar';
-        $b = new Builder('test');
+        $b = new Builder(static::DEFAULT_SECRET);
 
         $b->verify($url);
     }
 
     /**
-     * @expectedException \Psecio\Uri\Exception\SignatureExpired
+     * @expectedException \DSentker\Uri\Exception\SignatureExpired
      */
     public function testValidateSignatureExpired()
     {
-        $url = 'http://test.com?foo=bar&signature=1234&expires='.strtotime('-1 hour');
-        $b = new Builder('test');
+        $url = 'http://test.com?foo=bar&_signature=1234&_expires=' . strtotime('-1 hour');
+        $b = new Builder(static::DEFAULT_SECRET);
 
         $b->verify($url);
+    }
+
+    public function testModifyExpireQueryParam()
+    {
+        $url = 'https://example.com/?foo=bar';
+        $b = new Builder(static::DEFAULT_SECRET);
+        $url = $b->create($url, [], '+10 seconds');
+
+        $this->assertTrue($b->verify($url));
+
+        // Modify "expire" param
+        $modifiedExpireParam = strtotime('+10 hour');
+        $url = preg_replace('/expires=[0-9]+/', '_expires=' . $modifiedExpireParam, $url);
+        $this->assertFalse($b->verify($url));
+
+        // Remove "expire" param
+        $url = preg_replace('/_expires=[0-9]+/', '', $url);
+        $this->assertFalse($b->verify($url));
+
+    }
+
+    /**
+     * @expectedException \DSentker\Uri\Exception\InvalidTimeout
+     */
+    public function testInvalidTimeoutString()
+    {
+        $url = 'https://example.com/?foo=bar';
+        $b = new Builder(static::DEFAULT_SECRET);
+        $b->create($url, [], 'YouCannotParseMe');
+    }
+
+    public function testDateTimeAsValidTimeout()
+    {
+        $b = new Builder(static::DEFAULT_SECRET);
+        $url = $b->create('https://example.com/?foo=bar', [], new \DateTime('+10 SECONDS'));
+        $this->assertTrue($b->verify($url));
+    }
+
+    /**
+     * @expectedException \DSentker\Uri\Exception\InvalidTimeout
+     */
+    public function testDateTimeAsInvalidTimeout()
+    {
+        $b = new Builder(static::DEFAULT_SECRET);
+        $url = $b->create('https://example.com/?foo=bar', [], new \DateTime('YESTERDAY'));
+        $this->assertTrue($b->verify($url));
+    }
+
+    public function testQueryStringAndDataArray() {
+        $b = new Builder(static::DEFAULT_SECRET);
+        $url = $b->create('https://example.com/?foo=bar', [
+            'qux' => 'baz'
+        ]);
+        $this->assertTrue($b->verify($url));
     }
 }

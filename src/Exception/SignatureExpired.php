@@ -1,6 +1,6 @@
 <?php
 
-namespace Psecio\Uri\Exception;
+namespace DSentker\Uri\Exception;
 
 class SignatureExpired extends \Exception
 {
