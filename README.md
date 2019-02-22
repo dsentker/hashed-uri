@@ -88,7 +88,7 @@ Per default, the following parts of the URL are considered for hash generation:
 * Path (/foo/bar)
 * Query String (?qux=baz)
 
-The configuration allows to modify these components with Bitmask Contants. Use `HashConfiguration::setConfig()` to pass the Flags  (use the pipe | to join flags).
+The configuration allows to modify these components with Bitmask Contants. Use `HashConfiguration::setHashConfig()` to pass the Flags  (use the pipe | to join flags).
 
 For example, consider to add the URL scheme to the hashing process. That means that the validation of an URL fails only if the protocols (https <-> http) has changed.
 
@@ -107,7 +107,7 @@ $config->setHashConfig(
 ```
 
 ## Credits
-Based on the ideas by [psecio](https://github.com/psecio), the procject was forked by [dsentker](https://github.com/dsentker) (thats me 😁) to upgrade the code for PHP 7.x applications and many other improvements. The implementation of a Symfony Bundle is planned.
+Based on the ideas by [psecio](https://github.com/psecio), the project was forked by [dsentker](https://github.com/dsentker) (thats me 😁) to upgrade the code for PHP 7.x applications and many other improvements. The implementation of a Symfony Bundle is planned.
 
 ## Submitting bugs and feature requests
 Bugs and feature request are tracked on GitHub.
@@ -118,3 +118,5 @@ Bugs and feature request are tracked on GitHub.
 
 ## Testing
 `./vendor/bin/phpunit tests`
+
+Do not be surprised about a short break of two seconds during the tests. A sleep(2) was built in to test for the validation of the timeout functionality.
