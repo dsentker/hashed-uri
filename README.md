@@ -1,4 +1,4 @@
-#HashedUri  
+## HashedUri  
 
 **Sign URLs to prevent modification**
 
@@ -30,8 +30,7 @@ use HashedUri\HashConfiguration;
 // Secret is loaded from a configuration outside of the library
 $configuration = new HashConfiguration($_ENV['SECRET']);
 $builder = new Builder($configuration);
-$url = $builder->hashUrl('http://example.com/foo?bar=42');
-// http://example.com?foo?bar=42&_signature=90b7ac1...
+$url = $builder->hashUrl('http://example.com/foo?bar=42'); // http://example.com?foo?bar=42&_signature=90b7ac1...
 ```
 
 In this example we've created a new `Builder` instance with a configuration object, and using it to create the URL based on the data and URL provided. The `$url` result has the signature (the hash) value appended to the query string.
@@ -83,7 +82,10 @@ Per default, the following parts of the URL are considered for hash generation:
 * Path (/foo/bar)
 * Query String (?qux=baz)
 
-The configuration allows to modify these components with Bitmask Contants. Use `HashConfiguration::setConfig()` to pass the Flags  (use the pipe (|) to join flags).
+The configuration allows to modify these components with Bitmask Contants. Use `HashConfiguration::setConfig()` to pass the Flags  (use the pipe | to join flags).
+
+For example, consider to add the URL scheme to the hashing process. That means that the validation of an URL fails only if the protocols (https <-> http) has changed.
+
 ```php
 <?php
 $config = new HashConfiguration('secret');
