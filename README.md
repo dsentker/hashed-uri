@@ -42,14 +42,20 @@ The other half of the equation is the verification of a URL. The library provide
 ```php
 <?php
 use HashedUri\Validator;
-$requestUrl = 'http://example.com?foo=this+is+a+test&_signature=90b7ac1...';
 $validator = new Validator($configuration); // Use the same $configuration here
-var_dump($validator->isValid($requestUrl)); // returns true or false, depending on the signature
+var_dump($validator->isValid('http://example.com?foo=this+is+a+test&_signature=90b7ac1...')); // returns true or false, depending on the signature
 
 // If you want to catch Exceptions to determine the cause of an invalid URL, use Validator::verify() instead
-$validator->verify($requestUrl); // Returns true or a \HashedUri\Exception\ValidationException.
+$validator->verify('http://example.com?foo=this+is+a+test&_signature=90b7ac1...'); // Returns true or a \HashedUri\Exception\ValidationException.
 
 ```
+
+`Validator::isValid($url)` returns a boolean value based on the validation result, nothing more.
+`Validator::verify($url)` Will throw some of these exceptions if the url signature (or the timeout) is not valid:
+* ValidationException
+  * SignatureNotFoundException (if not present in query string)
+  * SignatureInvalidException (if present, but empty)
+  * SignatureExpiredException (if timeout has expired)
 
 ### Expiring URLs
 The library also provides the ability to create URLs that will fail validation because they've expired. To make use of this, simply pass in a second parameter for the `hashUrl` method call. This value should either be a relative string (parsable by PHP's [strtotime](https://php.net/strtotime)) or a \DateTime object:
