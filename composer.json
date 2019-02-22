@@ -7,10 +7,6 @@
     "license":"MIT",
     "authors":[
         {
-            "name":"Chris Cornutt",
-            "email":"ccornutt@phpdeveloper.org"
-        },
-        {
             "name":"Daniel Sentker",
             "email":"tracid2008@gmail.com"
         }
@@ -19,11 +15,19 @@
         "phpunit/phpunit": "^7.0"
     },
     "require": {
-        "php": "^7.0"
+        "php": "^7.1",
+        "league/uri-query-parser": "^1.0",
+        "league/uri-parser": "^1.4"
     },
     "autoload": {
         "psr-4": {
-            "DSentker\\Uri\\": "src/"
+            "HashedUri\\": "src/",
+        }
+    },
+    "autoload-dev": {
+        "psr-0": {
+            "HashedUriTest\\": "tests/",
+            "HashedUriTest\\Utility\\": "tests/Utility"
         }
     }
 }

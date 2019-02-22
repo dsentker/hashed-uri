@@ -3,12 +3,13 @@
          convertErrorsToExceptions="true"
          convertWarningsToExceptions="true"
          convertNoticesToExceptions="true"
-         bootstrap="vendor/autoload.php"
+         bootstrap="tests/autoload.php"
          verbose="true"
          colors="true">
     <testsuites>
-        <testsuite name="uri">
+        <testsuite name="HashedUri">
             <directory>./tests</directory>
+            <exclude>./tests/Utility</exclude>
         </testsuite>
     </testsuites>
     <filter>
